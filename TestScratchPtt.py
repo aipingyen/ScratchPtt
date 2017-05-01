@@ -1,13 +1,14 @@
 import ScratchPtt
 import threading
 
+
 class mythread(threading.Thread):
     def __init__(self, post):
         threading.Thread.__init__(self)
         self.post = post
     def run(self):
         text = ScratchPtt.getText(post)
-        print(text)
+        print(text['title'])
 
 pages = ScratchPtt.getPages(5)
 for page in pages:
