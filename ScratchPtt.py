@@ -4,7 +4,9 @@ import re
 import time
 import arrow
 import jieba
+import jiebaTW
 from collections import Counter
+from dateutil import parser
 
 HOST = "https://www.ptt.cc"
 boardName = "Gossiping"
@@ -57,7 +59,7 @@ def getText(postUrl):
     name = None
     nickName = None
     title = None
-    atime = None
+    dtime = None
     dic = {}
     r = requests.get(postUrl, headers=headers)
     soup = BeautifulSoup(r.text, 'lxml')
@@ -74,7 +76,9 @@ def getText(postUrl):
                 f.write('\n')
         title = info[2].text
         postTime = info[3].text
-        atime = arrow.Arrow.strptime(postTime, '%a %b %d %H:%M:%S %Y' ,tzinfo='Asia/Taipei').timestamp
+        # atime = arrow.Arrow.strptime(postTime, '%a %b %d %H:%M:%S %Y' ,tzinfo='Asia/Taipei').timestamp
+        dtime = parser.parse(postTime)
+        dtime = dtime.__str__()
     except IndexError:
         with open('IndexError.txt', 'a') as f:
             f.write(postUrl)
@@ -106,6 +110,9 @@ def getText(postUrl):
     p_bad = 0
     p_balance = 0
     for push in pushs:
+        userid = None
+        content = None
+        ipdatetime = None
         try:
             tag = push.select_one(".push-tag").text.strip()
             userid = push.select_one(".push-userid").text
@@ -131,32 +138,52 @@ def getText(postUrl):
     dic['name'] = name
     dic['nickName'] = nickName
     dic['title'] = title
-    dic['postTime'] = atime
+    dic['postTime'] = dtime
     dic['contents'] = reStrings
     dic['articles'] = articles
+    #level is good pushs minus bad pushs
     level = p_good - p_bad
-    if (level > 30):
-        with open('levels30', 'a') as f:
-            f.write(postUrl)
-            f.write('\n')
     dic['level'] = level
+    #consider the post is good or bad or contentious
+    type = None
+    if p_good != 0 or p_bad != 0:
+        if p_good - p_bad == p_good:
+            type = 'good'
+        elif p_bad - p_good == p_bad:
+            type = 'bad'
+        else:
+            if p_good / p_bad >= 1.3:
+                type = 'good'
+            elif p_good/ p_bad <= 0.7:
+                type = 'bad'
+            else:
+                type = 'contentious'
+    dic['type'] = type
     return dic
 
+#import strings array into useJieba, return list of popular words
 def useJieba(strings):
     words = Counter()
     for string in strings:
-        cutString = jieba.cut_for_search(string)
+        cutString = jiebaTW.cut(string)
         for word in cutString:
             if word in words:
                 words[word] += 1
             else:
                 words[word] = 1
     words = words.most_common()
-    return words
+    c_words= []
+    for word in words:
+        if len(word[0]) != 1 and word[1] > 1:
+            c_words.append(word[0])
+            if len(c_words) > 9:
+                break
+    return c_words
 
-url = "https://www.ptt.cc/bbs/Gossiping/M.1493471423.A.F1C.html"
-text = getText(url)
-words = useJieba(text['contents'])
-for word in words:
-    # print('%s-%d' % (word, words[word]))
-    print(word)
+def getArtWords(articles):
+    arts = []
+    for art in articles:
+        string = art['content']
+        arts.append(string)
+    artWords = useJieba(arts)
+    return artWords
