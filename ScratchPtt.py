@@ -2,9 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import time
-import arrow
 import jieba
-import jiebaTW
 from collections import Counter
 from dateutil import parser
 
@@ -15,7 +13,6 @@ headers = {'cookie': 'over18=1;'}
 
 
 def getPages(number):
-    global HOST, index, headers
     r = requests.get(index, headers=headers)
     soup = BeautifulSoup(r.text, "lxml")
     link = HOST + soup.select("a.wide")[1]['href']
@@ -31,7 +28,6 @@ def getPages(number):
 
 
 def getPosts(pageUrl):
-    global headers
     r = requests.get(pageUrl, headers=headers)
     soup = BeautifulSoup(r.text, "lxml")
     postList = []
@@ -55,7 +51,6 @@ for year in range(2005, thisYear+1):
     years.insert(0, str(year))
 
 def getText(postUrl):
-    global boardName, headers, exclude, excludeB, years
     name = None
     nickName = None
     title = None
@@ -78,7 +73,7 @@ def getText(postUrl):
         postTime = info[3].text
         # atime = arrow.Arrow.strptime(postTime, '%a %b %d %H:%M:%S %Y' ,tzinfo='Asia/Taipei').timestamp
         dtime = parser.parse(postTime)
-        dtime = dtime.__str__()
+        # dtime = dtime.__str__()
     except IndexError:
         with open('IndexError.txt', 'a') as f:
             f.write(postUrl)
@@ -165,7 +160,7 @@ def getText(postUrl):
 def useJieba(strings):
     words = Counter()
     for string in strings:
-        cutString = jiebaTW.cut(string)
+        cutString = jieba.cut(string)
         for word in cutString:
             if word in words:
                 words[word] += 1
